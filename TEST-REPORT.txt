@@ -1,0 +1,13 @@
+DAKSHINA AI — LOCAL PACKAGE CHECKS
+==================================
+- Netlify function JavaScript syntax: checked with Node.js.
+- Existing local server JavaScript syntax: checked with Node.js.
+- Browser inline JavaScript syntax: checked with Node.js parser.
+- Netlify config present with site publish path and functions path.
+- /api/health and /api/chat routes rewrite to the Netlify function.
+- Missing-key health endpoint and chat endpoint return safe setup messages.
+- Request JSON parsing, body size validation, message history validation, and best-effort per-IP rate limiting implemented.
+- Gemini model IDs: checked against current Google Gemini API model documentation.
+- API key exposure scan: no pasted key included in package files.
+- Live Gemini request: NOT tested; requires the owner's newly rotated key.
+- Netlify deployment: NOT performed; requires access to the owner's Netlify account.

@@ -1,0 +1,13 @@
+{
+  "name": "dakshina-ai-netlify",
+  "version": "2.8.0",
+  "private": true,
+  "description": "Dakshina AI with a server-side shared Gemini API key",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

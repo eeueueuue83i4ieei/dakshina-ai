@@ -1,0 +1,9 @@
+Dakshina AI Netlify Edition
+Prepared: 2026-11-07
+Static site directory: site/
+Netlify Function: netlify/functions/chat.js
+Netlify config: netlify.toml
+Primary Gemini model: gemini-3.5-flash-lite
+Fallback models: gemini-3.8-flash, gemini-3.6-flash
+Credential: GEMINI_API_KEY in Netlify environment variables only
+No real API key is included in this package.

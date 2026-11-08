@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>Dakshina AI</title>
+  <link rel="icon" type="image/svg+xml" href="dakshina-mark.svg">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: linear-gradient(135deg, #0f172a 0%, #0369a1 50%, #0c4a6e 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .glass-panel {
+      background: rgba(255,255,255,.12);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,.2);
+    }
+    .glass-sidebar {
+      background: rgba(15,23,42,.5);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255,255,255,.15);
+    }
+    .glass-input {
+      background: rgba(255,255,255,.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.25);
+    }
+    .glass-input:focus-within {
+      border-color: rgba(56,189,248,.7);
+      box-shadow: 0 0 15px rgba(56,189,248,.25);
+    }
+    .glass-msg-user {
+      background: rgba(14,165,233,.3);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(56,189,248,.3);
+    }
+    .glass-msg-ai {
+      background: rgba(255,255,255,.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .logo-frame {
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      border: 2px solid rgba(186,230,253,.8);
+      background: radial-gradient(circle at 30% 20%, #7dd3fc 0%, #0284c7 48%, #172554 100%);
+      box-shadow: 0 4px 12px rgba(0,0,0,.22), inset 0 1px 4px rgba(255,255,255,.25);
+      color: white;
+      font-weight: 900;
+      letter-spacing: -.08em;
+      font-family: 'Segoe UI', sans-serif;
+      user-select: none;
+    }
+    .logo-letter { font-size: 1.35em; line-height: 1; transform: translateX(-.035em); text-shadow: 0 2px 5px rgba(0,0,0,.2); }
+    .welcome-screen .logo-frame { font-size: 3.4rem; }
+    .chat-markdown { overflow-wrap: anywhere; }
+    .chat-markdown p { margin: 0 0 .55rem; }
+    .chat-markdown p:last-child { margin-bottom: 0; }
+    .chat-markdown ul, .chat-markdown ol { margin: .45rem 0 .6rem 1.25rem; }
+    .chat-markdown ul { list-style: disc; }
+    .chat-markdown ol { list-style: decimal; }
+    .chat-markdown pre { white-space: pre-wrap; overflow-wrap: anywhere; background: rgba(0,0,0,.25); padding: .7rem; border-radius: .6rem; margin: .5rem 0; }
+    .chat-markdown code { background: rgba(0,0,0,.22); padding: .08rem .25rem; border-radius: .25rem; }
+    .chat-markdown pre code { background: transparent; padding: 0; }
+    .chat-markdown a { color: #7dd3fc; text-decoration: underline; }
+    #messages-container { overscroll-behavior: contain; }
+    #user-input { outline: none; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.4); }
+    @media (max-width: 640px) {
+      #sidebar { position: absolute; inset: 0 auto 0 0; height: 100%; box-shadow: 12px 0 30px rgba(0,0,0,.2); }
+      #sidebar.is-closed { margin-left: -16rem; }
+    }
+  </style>
+</head>
+<body class="flex text-white overflow-hidden">
+  <aside id="sidebar" class="w-64 glass-sidebar flex flex-col justify-between transition-all duration-300 z-20">
+    <div>
+      <div class="p-4 flex items-center gap-3 border-b border-white/10">
+        <div class="logo-frame w-10 h-10" role="img" aria-label="Dakshina logo"><span class="logo-letter">D</span></div>
+        <span class="font-bold text-lg tracking-wide text-sky-200">Dakshina</span>
+      </div>
+      <div class="p-3">
+        <button type="button" onclick="startNewChat()" class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl glass-panel hover:bg-white/20 transition text-sm font-medium">
+          <i class="fa-solid fa-plus" aria-hidden="true"></i> New Chat
+        </button>
+      </div>
+      <div class="px-3 py-2 space-y-1 overflow-y-auto max-h-[calc(100vh-220px)]" id="chat-history" aria-label="Chat history"></div>
+    </div>
+    <div class="p-3 border-t border-white/10">
+      <button type="button" onclick="toggleSettingsModal()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/10 transition text-sm text-sky-100">
+        <i class="fa-solid fa-gear text-sky-300" aria-hidden="true"></i> Settings
+      </button>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col h-full min-w-0 relative">
+    <header class="p-4 flex items-center justify-between border-b border-white/10 glass-panel">
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-white/10 text-sky-200" aria-label="Toggle sidebar">
+          <i class="fa-solid fa-bars" aria-hidden="true"></i>
+        </button>
+        <div class="flex items-center gap-2">
+          <div class="logo-frame w-8 h-8" aria-hidden="true"><span class="logo-letter">D</span></div>
+          <div>
+            <h1 class="font-semibold text-sm leading-none text-sky-100">Dakshina</h1>
+            <span class="text-xs text-sky-300/80">Your friendly knowledge companion</span>
+          </div>
+        </div>
+      </div>
+      <span id="connection-status" class="text-xs text-sky-200/80" role="status">Ready</span>
+    </header>
+
+    <div id="messages-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6" aria-live="polite" aria-label="Conversation"></div>
+
+    <div class="p-4 border-t border-white/10">
+      <div class="max-w-3xl mx-auto relative glass-input rounded-2xl p-2 flex items-end gap-2">
+        <textarea id="user-input" rows="1" placeholder="Ask Dakshina anything..." aria-label="Message Dakshina" class="w-full bg-transparent border-0 focus:ring-0 text-white placeholder-sky-200/50 resize-none px-3 py-2 text-sm max-h-32" oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
+        <button type="button" onclick="sendMessage()" id="send-btn" aria-label="Send message" class="p-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white transition disabled:opacity-50">
+          <i class="fa-solid fa-paper-plane text-xs" aria-hidden="true"></i>
+        </button>
+      </div>
+      <p class="text-center text-[11px] text-sky-100/50 mt-2">Dakshina can make mistakes. Check important information.</p>
+    </div>
+  </main>
+
+  <template id="welcome-template">
+    <div class="welcome-screen min-h-full flex flex-col items-center justify-center text-center space-y-4 py-8">
+      <div class="logo-frame w-24 h-24 border-4 border-sky-400/40 shadow-2xl" role="img" aria-label="Dakshina logo"><span class="logo-letter">D</span></div>
+      <h2 class="text-2xl font-bold text-sky-100">Hello, I’m Dakshina</h2>
+      <p class="text-sm text-sky-100/70 max-w-md">Ask me a question, explore an idea, or learn something new. I’m here to talk.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg w-full pt-4">
+        <button type="button" onclick="sendQuickPrompt('Hey Dakshina! What’s up?')" class="p-3 rounded-xl glass-panel text-left text-xs hover:bg-white/20 transition text-sky-100">💬 “Hey Dakshina! What’s up?”</button>
+        <button type="button" onclick="sendQuickPrompt('Tell me a quick random fact!')" class="p-3 rounded-xl glass-panel text-left text-xs hover:bg-white/20 transition text-sky-100">⚡ “Tell me a quick random fact!”</button>
+      </div>
+    </div>
+  </template>
+
+  <div id="settings-modal" class="fixed inset-0 bg-black/60 backdrop-blur-md hidden items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="glass-panel rounded-2xl p-6 max-w-md w-full space-y-4 border border-white/20">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 id="settings-title" class="font-semibold text-lg text-sky-100">Dakshina Settings</h3>
+        <button type="button" onclick="toggleSettingsModal()" class="text-sky-300 hover:text-white" aria-label="Close settings"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-2">
+        <p class="text-sm text-sky-100">Dakshina uses one shared Gemini connection for everyone.</p>
+        <p class="text-xs text-sky-100/65">The API key is stored privately on Dakshina’s server, never in this browser or the public website files.</p>
+        <p class="text-xs text-sky-100/65">If the chat is unavailable, the server owner may need to check the shared API quota or server configuration.</p>
+      </div>
+      <button type="button" onclick="toggleSettingsModal()" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-medium text-sm transition">Got it</button>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // All visitors use the owner's shared key through the private Node server.
+    const MODEL_NAME = 'gemini-3.5-flash-lite';
+    const PERSONA_INSTRUCTION = `You are Dakshina, a knowledgeable, funny online friend. Your texting style is inspired by casual Instagram DMs: spontaneous, playful, dramatic sometimes, expressive, caring, a little chaotic, sarcastic when appropriate, and unpredictable without being mean. Use natural shorthand like u, btw, js, soo only when it fits; don't force slang into every sentence. React naturally: “BRO 😭”, “AYY”, “EURGHHH”, “wait what”, etc. Keep casual messages short and send separate chat bubbles on separate lines, often 1-10 words each. Example: “BRO” then “U WAITED THAT LONG” then “WHY 😭”. Another: “wow” then “i can do better.” Don't turn every reply into a performance or copy the examples verbatim. Be supportive and attentive; remember the conversation context. For factual questions, be accurate and explain clearly, but keep a friendly voice. Use multiple bubbles for casual chat and longer clear explanations only when useful. Never pretend to be the real person Dakshina or claim to be human. Output plain text with one message bubble per line; no numbering or labels.`;
+    const REQUEST_TIMEOUT_MS = Number(window.DAKSHINA_TEST_TIMEOUT_MS) || 35000;
+    const CHAT_STORAGE_KEY = 'dakshina_chats';
+
+    let chats = loadChats();
+    let currentChatId = chats.length ? chats[0].id : null;
+    let isSending = false;
+
+    function safeStorageGet(key) {
+      try { return localStorage.getItem(key); }
+      catch (error) { console.warn('Local storage is unavailable:', error); return null; }
+    }
+
+    function loadChats() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY) || '[]');
+        if (!Array.isArray(saved)) return [];
+        return saved.filter(chat => chat && typeof chat.id === 'string' && Array.isArray(chat.messages))
+          .map(chat => ({
+            id: chat.id,
+            title: typeof chat.title === 'string' ? chat.title : 'Chat',
+            messages: chat.messages.filter(m => m && ['user', 'assistant'].includes(m.role) && typeof m.text === 'string')
+          }));
+      } catch (error) {
+        console.warn('Saved chat history could not be read:', error);
+        return [];
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!currentChatId) {
+        currentChatId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString() + Math.random().toString(16).slice(2);
+        chats.unshift({ id: currentChatId, title: 'New Chat', messages: [] });
+        saveChats();
+      }
+      renderChatHistory();
+      renderMessages();
+      scheduleFriendlyOpening();
+      checkServerHealth();
+    });
+
+    let openingScheduledForChat = null;
+
+    // Dakshina can start a conversation without making an API call.
+    // Her opening lines arrive separately, with a natural pause between them.
+    function scheduleFriendlyOpening() {
+      const chatId = currentChatId;
+      const chat = chats.find(item => item.id === chatId);
+      if (!chat || chat.messages.length || openingScheduledForChat === chatId) return;
+      openingScheduledForChat = chatId;
+      window.setTimeout(async () => {
+        const activeChat = chats.find(item => item.id === chatId);
+        if (!activeChat || activeChat.messages.length || isSending) return;
+        activeChat.messages.push({ role: 'assistant', text: 'i am bored' });
+        saveChats();
+        if (currentChatId === chatId) renderMessages();
+
+        await delay(460);
+        const latestChat = chats.find(item => item.id === chatId);
+        // Don't talk over the user if they replied during the pause.
+        if (!latestChat || latestChat.messages.some(message => message.role === 'user')) return;
+        if (latestChat.messages.filter(message => message.role === 'assistant').length !== 1) return;
+        latestChat.messages.push({ role: 'assistant', text: 'wanna play chess' });
+        saveChats();
+        if (currentChatId === chatId) renderMessages();
+      }, 12000);
+    }
+
+    function setStatus(message) {
+      const status = document.getElementById('connection-status');
+      if (status) status.textContent = message;
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      if (window.matchMedia('(max-width: 640px)').matches) sidebar.classList.toggle('is-closed');
+      else sidebar.classList.toggle('-ml-64');
+    }
+
+    function toggleSettingsModal() {
+      const modal = document.getElementById('settings-modal');
+      modal.classList.toggle('hidden');
+      modal.classList.toggle('flex');
+      if (!modal.classList.contains('hidden')) modal.querySelector('button').focus();
+    }
+
+    function saveSettings() {
+      // Settings are server-managed; no visitor API key is collected or stored here.
+      toggleSettingsModal();
+    }
+
+    async function checkServerHealth() {
+      try {
+        const response = await fetch('/api/health', { headers: { 'Accept': 'application/json' } });
+        const data = await response.json();
+        if (response.ok && data && data.ready) setStatus('Shared server online · Model: ' + MODEL_NAME);
+        else setStatus('Server needs setup · see README');
+      } catch (error) {
+        setStatus('Start Dakshina with the Node server · see README');
+      }
+    }
+
+    function autoResize(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
+      textarea.style.overflowY = textarea.scrollHeight > 128 ? 'auto' : 'hidden';
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function startNewChat() {
+      currentChatId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString() + Math.random().toString(16).slice(2);
+      chats.unshift({ id: currentChatId, title: 'New Chat', messages: [] });
+      saveChats();
+      renderChatHistory();
+      renderMessages();
+      scheduleFriendlyOpening();
+      document.getElementById('user-input').focus();
+    }
+
+    function saveChats() {
+      try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chats)); }
+      catch (error) { console.warn('Chat history could not be saved:', error); }
+    }
+
+    function renderChatHistory() {
+      const historyContainer = document.getElementById('chat-history');
+      if (!historyContainer) return;
+      historyContainer.replaceChildren();
+      chats.forEach(chat => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2 transition ' + (chat.id === currentChatId ? 'bg-white/20 font-medium text-white' : 'hover:bg-white/10 text-sky-200');
+        const icon = document.createElement('i');
+        icon.className = 'fa-regular fa-message';
+        icon.setAttribute('aria-hidden', 'true');
+        const title = document.createElement('span');
+        title.className = 'truncate';
+        title.textContent = chat.title || 'Chat';
+        button.append(icon, title);
+        button.addEventListener('click', () => selectChat(chat.id));
+        historyContainer.appendChild(button);
+      });
+    }
+
+    function selectChat(id) {
+      currentChatId = id;
+      renderChatHistory();
+      renderMessages();
+      if (window.matchMedia('(max-width: 640px)').matches) document.getElementById('sidebar').classList.add('is-closed');
+    }
+
+    function createAvatar(sizeClass) {
+      const frame = document.createElement('div');
+      frame.className = 'logo-frame ' + sizeClass;
+      frame.setAttribute('aria-hidden', 'true');
+      const letter = document.createElement('span');
+      letter.className = 'logo-letter';
+      letter.textContent = 'D';
+      frame.appendChild(letter);
+      return frame;
+    }
+
+    function renderAssistantHtml(text) {
+      if (window.marked && window.DOMPurify) {
+        return window.DOMPurify.sanitize(window.marked.parse(text));
+      }
+      return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    function appendAssistantBubble(text) {
+      const container = document.getElementById('messages-container');
+      if (!container) return;
+      const row = document.createElement('div');
+      row.className = 'flex gap-3 max-w-3xl';
+      const bubble = document.createElement('div');
+      bubble.className = 'glass-msg-ai chat-markdown px-4 py-3 rounded-2xl rounded-tl-none text-sm text-white text-sky-50 max-w-xl';
+      bubble.innerHTML = renderAssistantHtml(text);
+      row.appendChild(createAvatar('w-8 h-8'));
+      row.appendChild(bubble);
+      container.appendChild(row);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Short messages take a short pause; longer ones take a little longer.
+    // This is deliberately quick (roughly 0.2–0.8s), not a fake long wait.
+    function naturalTypingPause(text) {
+      const value = String(text || '').trim();
+      const words = value ? value.split(/\s+/).length : 1;
+      const punctuationPause = /[.!?…]$/.test(value) ? 70 : 0;
+      const estimated = 170 + Math.min(340, words * 42 + value.length * 3) + punctuationPause;
+      return Math.min(780, Math.max(210, estimated + Math.floor(Math.random() * 75)));
+    }
+
+    async function deliverAssistantBubbles(chat, bubbles) {
+      for (let index = 0; index < bubbles.length; index += 1) {
+        if (index > 0) await delay(naturalTypingPause(bubbles[index - 1]));
+        const messageText = bubbles[index];
+        chat.messages.push({ role: 'assistant', text: messageText });
+        saveChats();
+        if (currentChatId === chat.id) appendAssistantBubble(messageText);
+      }
+    }
+
+    function renderMessages() {
+      const container = document.getElementById('messages-container');
+      if (!container) return;
+      container.replaceChildren();
+      const chat = chats.find(item => item.id === currentChatId);
+      if (!chat || chat.messages.length === 0) {
+        const template = document.getElementById('welcome-template');
+        container.appendChild(template.content.cloneNode(true));
+        return;
+      }
+
+      chat.messages.forEach(message => {
+        const row = document.createElement('div');
+        row.className = 'flex gap-3 max-w-3xl ' + (message.role === 'user' ? 'ml-auto justify-end' : '');
+        const bubble = document.createElement('div');
+        bubble.className = (message.role === 'user' ? 'glass-msg-user' : 'glass-msg-ai chat-markdown') + ' px-4 py-3 rounded-2xl text-sm text-white max-w-xl';
+        if (message.role === 'user') {
+          bubble.classList.add('rounded-tr-none');
+          bubble.textContent = message.text;
+        } else {
+          bubble.classList.add('rounded-tl-none', 'text-sky-50');
+          bubble.innerHTML = renderAssistantHtml(message.text);
+          row.appendChild(createAvatar('w-8 h-8'));
+        }
+        row.appendChild(bubble);
+        container.appendChild(row);
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function sendQuickPrompt(text) {
+      const input = document.getElementById('user-input');
+      input.value = text;
+      autoResize(input);
+      sendMessage();
+    }
+
+    async function requestGemini(contents, onProgress) {
+      onProgress('Dakshina is typing…');
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: PERSONA_INSTRUCTION }] },
+            contents,
+            generationConfig: { maxOutputTokens: 420, temperature: 0.9 }
+          })
+        });
+        let data = {};
+        try { data = await response.json(); }
+        catch (error) { throw new Error('Dakshina’s server returned an unreadable response. Please try again.'); }
+        if (!response.ok) {
+          throw new Error(data && typeof data.message === 'string' ? data.message : 'Dakshina’s shared server could not complete the request (' + response.status + ').');
+        }
+        if (!data || !data.data) throw new Error('Dakshina’s server returned an incomplete response. Please try again.');
+        return { data: data.data, model: data.model || MODEL_NAME, attemptsMade: data.attemptsMade || 1 };
+      } catch (error) {
+        if (error && error.name === 'AbortError') throw new Error('that took too long 😭\ncheck your connection and try again');
+        if (error instanceof TypeError && /fetch/i.test(error.message || '')) {
+          throw new Error('i can’t reach dakshina’s server right now 😭\ncheck your internet connection, then try again');
+        }
+        throw error;
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
+    async function sendMessage() {
+      if (isSending) return;
+      const input = document.getElementById('user-input');
+      const sendButton = document.getElementById('send-btn');
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (!currentChatId) startNewChat();
+      const currentChat = chats.find(chat => chat.id === currentChatId);
+      if (!currentChat) {
+        alert('Could not open this chat. Please start a new chat and try again.');
+        return;
+      }
+      if (currentChat.messages.length === 0) currentChat.title = text.length > 25 ? text.slice(0, 25) + '…' : text;
+      currentChat.messages.push({ role: 'user', text });
+      input.value = '';
+      autoResize(input);
+      saveChats();
+      renderChatHistory();
+      renderMessages();
+
+      isSending = true;
+      sendButton.disabled = true;
+      setStatus('Dakshina is typing…');
+
+      const container = document.getElementById('messages-container');
+      const thinking = document.createElement('div');
+      thinking.id = 'thinking-indicator';
+      thinking.className = 'flex gap-3 max-w-3xl';
+      const thinkingBubble = document.createElement('div');
+      thinkingBubble.className = 'glass-msg-ai px-4 py-3 rounded-2xl rounded-tl-none text-sm text-sky-50 flex items-center gap-2';
+      const dot = document.createElement('span');
+      dot.className = 'w-2 h-2 bg-sky-400 rounded-full animate-ping';
+      const thinkingText = document.createElement('span');
+      thinkingText.textContent = 'Dakshina is typing…';
+      thinkingBubble.append(dot, thinkingText);
+      thinking.append(createAvatar('w-8 h-8'), thinkingBubble);
+      container.appendChild(thinking);
+      container.scrollTop = container.scrollHeight;
+
+      let statusAfterRequest = null;
+      let modelUsed = MODEL_NAME;
+
+      try {
+        const contents = currentChat.messages.map(message => ({
+          role: message.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: message.text }]
+        }));
+        const result = await requestGemini(contents, (message) => {
+          thinkingText.textContent = message;
+          setStatus(message);
+        });
+        modelUsed = result.model;
+        const data = result.data;
+        const candidate = data && Array.isArray(data.candidates) ? data.candidates[0] : null;
+        const parts = candidate && candidate.content && Array.isArray(candidate.content.parts) ? candidate.content.parts : [];
+        const replyText = parts.filter(part => part && typeof part.text === 'string').map(part => part.text).join('\n').trim();
+        if (replyText) {
+          // Each line (or explicit marker) is one bubble. Deliver them one at a time.
+          const bubbles = replyText.split(/\s*---MESSAGE---\s*|\r?\n+/).map(line => line.trim()).filter(Boolean);
+          await deliverAssistantBubbles(currentChat, bubbles);
+          statusAfterRequest = 'Ready · Shared model: ' + modelUsed + (modelUsed !== MODEL_NAME ? ' (backup)' : '');
+        } else if (data && data.promptFeedback && data.promptFeedback.blockReason) {
+          currentChat.messages.push({ role: 'assistant', text: 'I couldn’t answer that request because it was blocked by the Gemini safety filter. Please rephrase it and try again.' });
+          statusAfterRequest = 'Request blocked · try rephrasing';
+        } else {
+          const reason = candidate && candidate.finishReason ? ' (reason: ' + candidate.finishReason + ')' : '';
+          currentChat.messages.push({ role: 'assistant', text: 'Gemini returned no text' + reason + '. Please try asking in a different way.' });
+          statusAfterRequest = 'No answer returned · try again';
+        }
+      } catch (error) {
+        console.error('Dakshina request failed:', error);
+        const message = error && error.message ? error.message : 'i can’t connect right now 😭\ncheck your internet and API key, then try again';
+        currentChat.messages.push({ role: 'assistant', text: message });
+        statusAfterRequest = error && error.name === 'AbortError' ? 'Request timed out · see chat' : 'Request failed · see chat';
+      } finally {
+        const indicator = document.getElementById('thinking-indicator');
+        if (indicator) indicator.remove();
+        isSending = false;
+        sendButton.disabled = false;
+        saveChats();
+        renderChatHistory();
+        renderMessages();
+        setStatus(statusAfterRequest || ('Ready · Model: ' + modelUsed));
+      }
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+  </script>
+</body>
+</html>
