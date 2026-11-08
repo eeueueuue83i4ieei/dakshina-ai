@@ -1,7 +1,7 @@
 const PRIMARY_MODEL = "gemini-3.5-flash-lite";
 const FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"];
 const RETRYABLE_STATUSES = new Set([502, 503, 504]);
-const MAX_BODY_BYTES = 256 * 1024;
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
 const MAX_HISTORY_MESSAGES = 36;
 const MAX_MESSAGE_CHARS = 12000;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -114,6 +114,15 @@ export default async (request, context) => {
     catch { return json({ message: "Please send a valid image prompt." }, 400); }
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt || prompt.length > 1200) return json({ message: "Your image description must be between 1 and 1,200 characters." }, 400);
+    const uploaded = body.image && typeof body.image === "object" ? body.image : null;
+    let imagePart = null;
+    if (uploaded) {
+      const mimeType = typeof uploaded.mimeType === "string" ? uploaded.mimeType : "";
+      const imageData = typeof uploaded.data === "string" ? uploaded.data : "";
+      if (!["image/jpeg", "image/png", "image/webp"].includes(mimeType)) return json({ message: "Upload a JPG, PNG, or WEBP photo." }, 400);
+      if (!imageData || imageData.length > 8 * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(imageData)) return json({ message: "That photo is empty, too large, or invalid. Please try a smaller image." }, 413);
+      imagePart = { inlineData: { mimeType, data: imageData } };
+    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
     try {
@@ -121,7 +130,12 @@ export default async (request, context) => {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          contents: [{ role: "user", parts: [
+            { text: uploaded
+              ? "Use the uploaded photo as the visual reference for the person. Preserve the person's recognizable facial identity, natural facial features, skin tone, and overall likeness. Follow the requested styling, pose, clothing, lighting, and background changes while keeping the result photorealistic unless another style is requested. Do not replace the person with a different face. User request: " + prompt
+              : prompt },
+            ...(imagePart ? [imagePart] : [])
+          ] }],
           generationConfig: {
             responseModalities: ["TEXT", "IMAGE"],
             responseFormat: { image: { aspectRatio: "1:1", imageSize: "1K" } }
