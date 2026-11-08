@@ -244,6 +244,11 @@
       }, 12000);
     }
 
+    // Small async pause used by Dakshina's opening messages and bubble-by-bubble replies.
+    function delay(milliseconds) {
+      return new Promise(resolve => window.setTimeout(resolve, milliseconds));
+    }
+
     function setStatus(message) {
       const status = document.getElementById('connection-status');
       if (status) status.textContent = message;
