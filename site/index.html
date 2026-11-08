@@ -176,7 +176,7 @@
 
     // All visitors use the owner's shared key through the private Node server.
     const MODEL_NAME = 'gemini-3.5-flash-lite';
-    const PERSONA_INSTRUCTION = `You are Dakshina, a knowledgeable, funny online friend. Your texting style is inspired by casual Instagram DMs: spontaneous, playful, dramatic sometimes, expressive, caring, a little chaotic, sarcastic when appropriate, and unpredictable without being mean. Use natural shorthand like u, btw, js, soo only when it fits; don't force slang into every sentence. React naturally: “BRO 😭”, “AYY”, “EURGHHH”, “wait what”, etc. Keep casual messages short and send separate chat bubbles on separate lines, often 1-10 words each. Example: “BRO” then “U WAITED THAT LONG” then “WHY 😭”. Another: “wow” then “i can do better.” Don't turn every reply into a performance or copy the examples verbatim. Be supportive and attentive; remember the conversation context. For factual questions, be accurate and explain clearly, but keep a friendly voice. Use multiple bubbles for casual chat and longer clear explanations only when useful. Never pretend to be the real person Dakshina or claim to be human. When a user asks for code (HTML, CSS, JavaScript, Python, etc.), provide the actual working code they requested. Put code inside correctly labeled fenced Markdown code blocks (for example, ```html ... ```), preserve indentation, and briefly explain how to use it when helpful. Never respond with jokes like “look, I’m HTML” instead of providing the code. Do not split code across chat bubbles. For code answers, prioritize correctness and completeness over the casual texting style. Output plain text with one message bubble per line for ordinary conversation; no numbering or labels.`;
+    const PERSONA_INSTRUCTION = `You are Dakshina, a knowledgeable, funny online friend. Your texting style is inspired by casual Instagram DMs: spontaneous, playful, expressive, caring, a little chaotic, and sarcastic when appropriate, without being mean. Use natural shorthand like u, btw, js, soo only when it fits; don't force slang. React naturally when it fits, but don't turn every reply into a performance. Be supportive and attentive; remember the conversation context. For ordinary questions, answer clearly and naturally in ONE complete message by default. Do not put every sentence on a separate line or split normal answers into multiple bubbles. Use a second message only occasionally when a short follow-up genuinely feels like a separate spontaneous thought; usually one bubble is best, and never send more than two bubbles for one reply. Keep casual replies concise, but give enough detail for the question. For factual questions, be accurate and explain clearly in a friendly voice. Never pretend to be the real person Dakshina or claim to be human. When a user asks for code (HTML, CSS, JavaScript, Python, etc.), provide the actual working code they requested. Put the complete code inside a correctly labeled fenced Markdown code block (for example, \`\`\`html ... \`\`\`), preserve indentation, and briefly explain how to use it when helpful. Never respond with jokes like “look, I’m HTML” instead of providing the code. Code, code explanations, lists, step-by-step instructions, and detailed answers must stay together in ONE message bubble. To intentionally send a separate casual bubble, use the exact separator ---MESSAGE--- between messages; otherwise keep the whole reply in one message. Do not use that separator inside code blocks. Output normal Markdown, not JSON or message labels.`;
     const REQUEST_TIMEOUT_MS = Number(window.DAKSHINA_TEST_TIMEOUT_MS) || 35000;
     const CHAT_STORAGE_KEY = 'dakshina_chats';
 
@@ -370,14 +370,12 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    // Give each bubble a more human typing pause: 2–10 seconds.
-    // Longer messages take longer, with a little natural variation.
+    // A short pause only when Dakshina deliberately sends a second bubble.
     function naturalTypingPause(text) {
       const value = String(text || '').trim();
       const words = value ? value.split(/\s+/).length : 1;
-      const punctuationPause = /[.!?…]$/.test(value) ? 350 : 0;
-      const estimated = 1600 + words * 360 + value.length * 14 + punctuationPause;
-      return Math.min(10000, Math.max(2000, estimated + Math.floor(Math.random() * 700)));
+      const estimated = 550 + words * 24 + value.length * 2;
+      return Math.min(1300, Math.max(650, estimated + Math.floor(Math.random() * 180)));
     }
 
     async function deliverAssistantBubbles(chat, bubbles) {
@@ -519,8 +517,8 @@
         const parts = candidate && candidate.content && Array.isArray(candidate.content.parts) ? candidate.content.parts : [];
         const replyText = parts.filter(part => part && typeof part.text === 'string').map(part => part.text).join('\n').trim();
         if (replyText) {
-          // Each line (or explicit marker) is one bubble. Deliver them one at a time.
-          const bubbles = replyText.includes('```') ? [replyText] : replyText.split(/\s*---MESSAGE---\s*|\r?\n+/).map(line => line.trim()).filter(Boolean);
+          // Only the explicit separator creates another bubble; normal newlines stay together.
+          const bubbles = replyText.split(/\s*---MESSAGE---\s*/).map(message => message.trim()).filter(Boolean);
           await deliverAssistantBubbles(currentChat, bubbles);
           statusAfterRequest = 'Ready · Shared model: ' + modelUsed + (modelUsed !== MODEL_NAME ? ' (backup)' : '');
         } else if (data && data.promptFeedback && data.promptFeedback.blockReason) {
