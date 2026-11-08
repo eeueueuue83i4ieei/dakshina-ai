@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0f172a">
   <title>Dakshina AI</title>
-  <link rel="icon" type="image/svg+xml" href="dakshina-mark.svg">
+  <link rel="icon" type="image/svg+xml" href="dakshina-avatar.svg">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -68,7 +68,7 @@
       font-family: 'Segoe UI', sans-serif;
       user-select: none;
     }
-    .logo-letter { font-size: 1.35em; line-height: 1; transform: translateX(-.035em); text-shadow: 0 2px 5px rgba(0,0,0,.2); }
+    .logo-frame img { width: 100%; height: 100%; display: block; object-fit: cover; }
     .welcome-screen .logo-frame { font-size: 3.4rem; }
     .chat-markdown { overflow-wrap: anywhere; }
     .chat-markdown p { margin: 0 0 .55rem; }
@@ -97,7 +97,7 @@
   <aside id="sidebar" class="w-64 glass-sidebar flex flex-col justify-between transition-all duration-300 z-20">
     <div>
       <div class="p-4 flex items-center gap-3 border-b border-white/10">
-        <div class="logo-frame w-10 h-10" role="img" aria-label="Dakshina logo"><span class="logo-letter">D</span></div>
+        <div class="logo-frame w-10 h-10" role="img" aria-label="Dakshina logo"><img src="dakshina-avatar.svg" alt=""></div>
         <span class="font-bold text-lg tracking-wide text-sky-200">Dakshina</span>
       </div>
       <div class="p-3">
@@ -121,20 +121,25 @@
           <i class="fa-solid fa-bars" aria-hidden="true"></i>
         </button>
         <div class="flex items-center gap-2">
-          <div class="logo-frame w-8 h-8" aria-hidden="true"><span class="logo-letter">D</span></div>
+          <div class="logo-frame w-8 h-8" aria-hidden="true"><img src="dakshina-avatar.svg" alt=""></div>
           <div>
             <h1 class="font-semibold text-sm leading-none text-sky-100">Dakshina</h1>
             <span class="text-xs text-sky-300/80">Your friendly knowledge companion</span>
           </div>
         </div>
       </div>
-      <span id="connection-status" class="text-xs text-sky-200/80" role="status">Ready</span>
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="deleteCurrentChat()" class="p-2 rounded-lg hover:bg-rose-500/20 text-rose-200 transition" aria-label="Delete current chat" title="Delete chat"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+        <span id="connection-status" class="text-xs text-sky-200/80" role="status">Ready</span>
+      </div>
     </header>
 
     <div id="messages-container" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6" aria-live="polite" aria-label="Conversation"></div>
 
     <div class="p-4 border-t border-white/10">
       <div class="max-w-3xl mx-auto relative glass-input rounded-2xl p-2 flex items-end gap-2">
+        <button type="button" id="image-mode-btn" onclick="toggleImageMode()" class="p-2.5 rounded-xl hover:bg-white/10 text-sky-200 transition" aria-label="Create an image" title="Create an image"><i class="fa-regular fa-image" aria-hidden="true"></i></button>
+        <button type="button" id="voice-btn" onclick="toggleVoiceMode()" class="p-2.5 rounded-xl hover:bg-white/10 text-sky-200 transition" aria-label="Start voice mode" title="Voice mode"><i class="fa-solid fa-microphone" aria-hidden="true"></i></button>
         <textarea id="user-input" rows="1" placeholder="Ask Dakshina anything..." aria-label="Message Dakshina" class="w-full bg-transparent border-0 focus:ring-0 text-white placeholder-sky-200/50 resize-none px-3 py-2 text-sm max-h-32" oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
         <button type="button" onclick="sendMessage()" id="send-btn" aria-label="Send message" class="p-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white transition disabled:opacity-50">
           <i class="fa-solid fa-paper-plane text-xs" aria-hidden="true"></i>
@@ -146,7 +151,7 @@
 
   <template id="welcome-template">
     <div class="welcome-screen min-h-full flex flex-col items-center justify-center text-center space-y-4 py-8">
-      <div class="logo-frame w-24 h-24 border-4 border-sky-400/40 shadow-2xl" role="img" aria-label="Dakshina logo"><span class="logo-letter">D</span></div>
+      <div class="logo-frame w-24 h-24 border-4 border-sky-400/40 shadow-2xl" role="img" aria-label="Dakshina logo"><img src="dakshina-avatar.svg" alt=""></div>
       <h2 class="text-2xl font-bold text-sky-100">Hello, I’m Dakshina</h2>
       <p class="text-sm text-sky-100/70 max-w-md">Ask me a question, explore an idea, or learn something new. I’m here to talk.</p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg w-full pt-4">
@@ -336,9 +341,11 @@ CODE AND TASKS:
       if (!historyContainer) return;
       historyContainer.replaceChildren();
       chats.forEach(chat => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-1';
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'w-full text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2 transition ' + (chat.id === currentChatId ? 'bg-white/20 font-medium text-white' : 'hover:bg-white/10 text-sky-200');
+        button.className = 'min-w-0 flex-1 text-left px-3 py-2 rounded-xl text-xs flex items-center gap-2 transition ' + (chat.id === currentChatId ? 'bg-white/20 font-medium text-white' : 'hover:bg-white/10 text-sky-200');
         const icon = document.createElement('i');
         icon.className = 'fa-regular fa-message';
         icon.setAttribute('aria-hidden', 'true');
@@ -347,8 +354,41 @@ CODE AND TASKS:
         title.textContent = chat.title || 'Chat';
         button.append(icon, title);
         button.addEventListener('click', () => selectChat(chat.id));
-        historyContainer.appendChild(button);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'p-2 rounded-lg text-sky-200/60 hover:text-rose-200 hover:bg-rose-500/15 transition';
+        remove.title = 'Delete this chat';
+        remove.setAttribute('aria-label', 'Delete chat: ' + (chat.title || 'Chat'));
+        remove.innerHTML = '<i class="fa-regular fa-trash-can" aria-hidden="true"></i>';
+        remove.addEventListener('click', () => deleteChat(chat.id));
+        row.append(button, remove);
+        historyContainer.appendChild(row);
       });
+    }
+
+    function deleteCurrentChat() {
+      if (currentChatId) deleteChat(currentChatId);
+    }
+
+    function deleteChat(id) {
+      if (isSending && id === currentChatId) {
+        alert('Wait until Dakshina finishes replying, then delete this chat.');
+        return;
+      }
+      const chat = chats.find(item => item.id === id);
+      if (!chat || !confirm('Delete "' + (chat.title || 'this chat') + '"? This cannot be undone.')) return;
+      chats = chats.filter(item => item.id !== id);
+      if (currentChatId === id) {
+        currentChatId = chats.length ? chats[0].id : null;
+        if (!currentChatId) {
+          currentChatId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString() + Math.random().toString(16).slice(2);
+          chats.unshift({ id: currentChatId, title: 'New Chat', messages: [] });
+        }
+      }
+      saveChats();
+      renderChatHistory();
+      renderMessages();
+      scheduleFriendlyOpening();
     }
 
     function selectChat(id) {
@@ -362,10 +402,10 @@ CODE AND TASKS:
       const frame = document.createElement('div');
       frame.className = 'logo-frame ' + sizeClass;
       frame.setAttribute('aria-hidden', 'true');
-      const letter = document.createElement('span');
-      letter.className = 'logo-letter';
-      letter.textContent = 'D';
-      frame.appendChild(letter);
+      const image = document.createElement('img');
+      image.src = 'dakshina-avatar.svg';
+      image.alt = '';
+      frame.appendChild(image);
       return frame;
     }
 
@@ -406,6 +446,7 @@ CODE AND TASKS:
         saveChats();
         if (currentChatId === chat.id) appendAssistantBubble(messageText);
       }
+      if (voiceMode && bubbles.length) speakDakshina(bubbles.join(' '));
     }
 
     function renderMessages() {
@@ -481,6 +522,7 @@ CODE AND TASKS:
 
     async function sendMessage() {
       if (isSending) return;
+      if (imageMode) return generateImage();
       const input = document.getElementById('user-input');
       const sendButton = document.getElementById('send-btn');
       const text = input.value.trim();
@@ -564,6 +606,160 @@ CODE AND TASKS:
         renderMessages();
         setStatus(statusAfterRequest || ('Ready · Model: ' + modelUsed));
       }
+    }
+
+
+    // Image creation uses a private Netlify function; the Gemini key never reaches the browser.
+    let imageMode = false;
+    let voiceMode = false;
+    let activeRecognition = null;
+
+    function toggleImageMode() {
+      imageMode = !imageMode;
+      const button = document.getElementById('image-mode-btn');
+      const input = document.getElementById('user-input');
+      button.classList.toggle('bg-sky-500/30', imageMode);
+      button.classList.toggle('text-white', imageMode);
+      input.placeholder = imageMode ? 'Describe the image you want Dakshina to create…' : 'Ask Dakshina anything...';
+      setStatus(imageMode ? 'Image creation mode · describe your idea' : 'Ready');
+      input.focus();
+    }
+
+    async function generateImage() {
+      const input = document.getElementById('user-input');
+      const prompt = input.value.trim();
+      if (!prompt) { alert('Describe the image first.'); return; }
+      if (!currentChatId) startNewChat();
+      const chat = chats.find(item => item.id === currentChatId);
+      if (!chat) return;
+      chat.messages.push({ role: 'user', text: '🖼️ Create an image: ' + prompt });
+      saveChats();
+      renderMessages();
+      input.value = '';
+      autoResize(input);
+      isSending = true;
+      document.getElementById('send-btn').disabled = true;
+      setStatus('Creating your image… this can take a little while');
+      try {
+        const response = await fetch('/api/image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || 'Image generation failed (' + response.status + ').');
+        if (!data.image || !data.image.data || !data.image.mimeType) throw new Error('The image service returned no image. Please try again.');
+        chat.messages.push({ role: 'assistant', text: 'here you go ✨' });
+        saveChats();
+        if (currentChatId === chat.id) {
+          renderMessages();
+          appendGeneratedImage(data.image.data, data.image.mimeType);
+        }
+        setStatus('Image created · Ready');
+      } catch (error) {
+        console.error('Dakshina image generation failed:', error);
+        chat.messages.push({ role: 'assistant', text: error.message || 'Could not create that image. Try again.' });
+        saveChats();
+        renderMessages();
+        setStatus('Image generation failed · see chat');
+      } finally {
+        isSending = false;
+        document.getElementById('send-btn').disabled = false;
+        imageMode = false;
+        const button = document.getElementById('image-mode-btn');
+        button.classList.remove('bg-sky-500/30', 'text-white');
+        input.placeholder = 'Ask Dakshina anything...';
+      }
+    }
+
+    function appendGeneratedImage(base64, mimeType) {
+      const container = document.getElementById('messages-container');
+      const row = document.createElement('div');
+      row.className = 'flex gap-3 max-w-3xl';
+      row.appendChild(createAvatar('w-8 h-8'));
+      const bubble = document.createElement('div');
+      bubble.className = 'glass-msg-ai p-3 rounded-2xl rounded-tl-none max-w-xl';
+      const image = document.createElement('img');
+      image.src = 'data:' + mimeType + ';base64,' + base64;
+      image.alt = 'Image generated by Dakshina';
+      image.className = 'rounded-xl max-w-full h-auto';
+      image.style.maxHeight = '520px';
+      const download = document.createElement('a');
+      download.href = image.src;
+      download.download = 'dakshina-created-image.png';
+      download.textContent = 'Download image';
+      download.className = 'inline-block mt-2 text-xs text-sky-200 underline';
+      bubble.append(image, download);
+      row.appendChild(bubble);
+      container.appendChild(row);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function toggleVoiceMode() {
+      if (voiceMode) {
+        voiceMode = false;
+        if (activeRecognition) { try { activeRecognition.stop(); } catch (_) {} activeRecognition = null; }
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        document.getElementById('voice-btn').classList.remove('bg-sky-500/30', 'text-white');
+        setStatus('Voice mode off');
+        return;
+      }
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Recognition || !('speechSynthesis' in window)) {
+        alert('Voice mode is not supported in this browser. Try Chrome or Edge and allow microphone access.');
+        return;
+      }
+      voiceMode = true;
+      document.getElementById('voice-btn').classList.add('bg-sky-500/30', 'text-white');
+      setStatus('Voice mode on · listening…');
+      startVoiceCapture();
+    }
+
+    function startVoiceCapture() {
+      if (!voiceMode || isSending) return;
+      const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Recognition) return;
+      try {
+        const recognition = new Recognition();
+        activeRecognition = recognition;
+        recognition.lang = 'en-IN';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        recognition.onresult = event => {
+          const spoken = event.results && event.results[0] && event.results[0][0] ? event.results[0][0].transcript : '';
+          if (spoken) {
+            document.getElementById('user-input').value = spoken;
+            autoResize(document.getElementById('user-input'));
+            sendMessage();
+          }
+        };
+        recognition.onerror = event => {
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            voiceMode = false;
+            document.getElementById('voice-btn').classList.remove('bg-sky-500/30', 'text-white');
+            setStatus('Microphone permission denied');
+          }
+        };
+        recognition.onend = () => {
+          if (activeRecognition === recognition) activeRecognition = null;
+          if (voiceMode && !isSending) window.setTimeout(startVoiceCapture, 700);
+        };
+        recognition.start();
+      } catch (error) {
+        setStatus('Could not start microphone · check browser permission');
+      }
+    }
+
+    function speakDakshina(text) {
+      if (!voiceMode || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(String(text).slice(0, 1800));
+      utterance.lang = 'en-IN';
+      utterance.rate = 1.02;
+      utterance.pitch = 1.04;
+      utterance.onend = () => { if (voiceMode) startVoiceCapture(); };
+      window.speechSynthesis.speak(utterance);
     }
 
     function escapeHtml(text) {
