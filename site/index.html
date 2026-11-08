@@ -370,14 +370,14 @@
       container.scrollTop = container.scrollHeight;
     }
 
-    // Short messages take a short pause; longer ones take a little longer.
-    // This is deliberately quick (roughly 0.2–0.8s), not a fake long wait.
+    // Give each bubble a more human typing pause: 2–10 seconds.
+    // Longer messages take longer, with a little natural variation.
     function naturalTypingPause(text) {
       const value = String(text || '').trim();
       const words = value ? value.split(/\s+/).length : 1;
-      const punctuationPause = /[.!?…]$/.test(value) ? 70 : 0;
-      const estimated = 170 + Math.min(340, words * 42 + value.length * 3) + punctuationPause;
-      return Math.min(780, Math.max(210, estimated + Math.floor(Math.random() * 75)));
+      const punctuationPause = /[.!?…]$/.test(value) ? 350 : 0;
+      const estimated = 1600 + words * 360 + value.length * 14 + punctuationPause;
+      return Math.min(10000, Math.max(2000, estimated + Math.floor(Math.random() * 700)));
     }
 
     async function deliverAssistantBubbles(chat, bubbles) {
