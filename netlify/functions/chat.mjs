@@ -42,7 +42,7 @@ async function readPayload(request) {
     throw Object.assign(new Error("Chat history is missing or too long. Start a new chat and try again."), { status: 400 });
   }
   let totalChars = 0;
-  const contents = body.contents.map(item => {
+  const rawContents = body.contents.map(item => {
     if (!item || !["user", "model"].includes(item.role) || !Array.isArray(item.parts) || !item.parts.length) {
       throw Object.assign(new Error("The chat history contains an invalid message."), { status: 400 });
     }
@@ -54,6 +54,21 @@ async function readPayload(request) {
     if (!parts.length) throw Object.assign(new Error("A message is empty or unsupported."), { status: 400 });
     return { role: item.role, parts };
   });
+  // Gemini expects a valid alternating conversation. Dakshina displays each
+  // assistant line as a separate bubble, so combine adjacent messages with
+  // the same role and discard any assistant-only opening before the first user.
+  const contents = [];
+  for (const item of rawContents) {
+    if (contents.length && contents[contents.length - 1].role === item.role) {
+      contents[contents.length - 1].parts.push(...item.parts);
+    } else {
+      contents.push({ role: item.role, parts: [...item.parts] });
+    }
+  }
+  while (contents.length && contents[0].role !== "user") contents.shift();
+  if (!contents.length || contents[contents.length - 1].role !== "user") {
+    throw Object.assign(new Error("Please send a new message to continue the chat."), { status: 400 });
+  }
   if (totalChars > 60000) throw Object.assign(new Error("This conversation is too long. Start a new chat and try again."), { status: 413 });
 
   const systemParts = body.systemInstruction && Array.isArray(body.systemInstruction.parts)
@@ -65,7 +80,6 @@ async function readPayload(request) {
     contents,
     generationConfig: {
       maxOutputTokens: Math.min(Math.max(Number(generation.maxOutputTokens) || 420, 64), 700),
-      temperature: Math.min(Math.max(Number(generation.temperature) || 0.9, 0), 1.2)
     }
   };
 }
@@ -119,7 +133,9 @@ export default async (request, context) => {
         ? "The server’s Gemini key is not authorized. The owner should check the key and its Gemini API access."
         : result.response.status === 429
           ? "The shared Gemini quota or rate limit has been reached. Please try again later."
-          : `Gemini rejected the request (${result.response.status}).`;
+          : result.response.status === 400
+            ? "Gemini rejected the request: " + (message || "The request format was not accepted.")
+            : `Gemini rejected the request (${result.response.status}).`;
       return json({ message: friendly }, result.response.status);
     } catch (error) {
       lastIssue = error?.name === "AbortError" ? `Timed out on ${model}.` : "Could not reach the Gemini API.";
